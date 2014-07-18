@@ -3,7 +3,7 @@ pongo2
 
 Middleware pongo2 is a [pongo2](https://github.com/flosch/pongo2) template engine support for [Macaron](https://github.com/Unknwon/macaron).
 
-[API Reference](https://gowalker.org/github.com/macaron-contrib/pogon2)
+[API Reference](https://gowalker.org/github.com/macaron-contrib/pongo2)
 
 ### Installation
 
