@@ -191,7 +191,7 @@ func (r *render) HTML(status int, name string, data interface{}, _ ...macaron.HT
 
 	r.Header().Set(ContentType, r.opt.HTMLContentType+r.compiledCharset)
 	r.WriteHeader(status)
-	if err := t.ExecuteRW(r, pongo2.Context(data2Context(data))); err != nil {
+	if err := t.ExecuteWriter(pongo2.Context(data2Context(data)), r); err != nil {
 		http.Error(r, err.Error(), http.StatusInternalServerError)
 		return
 	}
