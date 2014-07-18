@@ -16,6 +16,7 @@
 package pongo2
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -77,7 +78,11 @@ func compile(options Options) {
 			if ext == extension {
 				name := (r[0 : len(r)-len(ext)])
 				// Bomb out if parse fails. We don't want any silent server starts.
-				tplMap[name] = pongo2.Must(pongo2.FromFile(path))
+				t, err := pongo2.FromFile(path)
+				if err != nil {
+					panic(fmt.Errorf("\"%s\": %v", path, err))
+				}
+				tplMap[name] = t
 				break
 			}
 		}
