@@ -145,13 +145,14 @@ func Pongoer(options ...Options) macaron.Handler {
 	cs := prepareCharset(opt.Charset)
 	compile(opt)
 
-	return func(ctx *macaron.Context, rw http.ResponseWriter) {
+	return func(ctx *macaron.Context, rw http.ResponseWriter, req *http.Request) {
 		if macaron.Env == macaron.DEV {
 			compile(opt)
 		}
 		r := &render{
 			TplRender: &macaron.TplRender{
 				ResponseWriter: rw,
+				Req:            req,
 				Opt: macaron.RenderOptions{
 					IndentJSON: opt.IndentJSON,
 					IndentXML:  opt.IndentXML,
