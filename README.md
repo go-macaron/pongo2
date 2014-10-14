@@ -26,7 +26,7 @@ func main() {
 
   m.Get("/", func(ctx *macaron.Context) {
   	ctx.Data["Name"] = "joe"
-    ctx.HTML(200, "hello", ctx.Data)
+    ctx.HTML(200, "hello")
   })
 
   m.Run()

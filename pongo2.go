@@ -1,4 +1,4 @@
-// Copyright 2014 Unknown
+// Copyright 2014 Unknwon
 //
 // Licensed under the Apache License, Version 2.0 (the "License"): you may
 // not use this file except in compliance with the License. You may obtain
@@ -82,7 +82,7 @@ func compile(options Options) {
 				if err != nil {
 					panic(fmt.Errorf("\"%s\": %v", path, err))
 				}
-				tplMap[name] = t
+				tplMap[strings.Replace(name, "\\", "/", -1)] = t
 				break
 			}
 		}
@@ -197,7 +197,7 @@ func (r *render) HTML(status int, name string, data interface{}, _ ...macaron.HT
 
 	r.Header().Set(ContentType, r.opt.HTMLContentType+r.compiledCharset)
 	r.WriteHeader(status)
-	if err := t.ExecuteWriter(pongo2.Context(data2Context(data)), r); err != nil {
+	if err := t.ExecuteWriter(data2Context(data), r); err != nil {
 		http.Error(r, err.Error(), http.StatusInternalServerError)
 		return
 	}
