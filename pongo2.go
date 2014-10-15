@@ -40,8 +40,9 @@ const (
 )
 
 var (
-	tplMap map[string]*pongo2.Template
-	lock   sync.RWMutex // Go map is not safe.
+	renderOpt Options
+	tplMap    map[string]*pongo2.Template
+	lock      sync.RWMutex // Go map is not safe.
 )
 
 func prepareCharset(charset string) string {
@@ -141,28 +142,28 @@ func prepareOptions(options []Options) Options {
 // If MACARON_ENV is set to "" or "development" then templates will be recompiled on every request. For more performance, set the
 // MACARON_ENV environment variable to "production".
 func Pongoer(options ...Options) macaron.Handler {
-	opt := prepareOptions(options)
-	cs := prepareCharset(opt.Charset)
-	compile(opt)
+	renderOpt = prepareOptions(options)
+	cs := prepareCharset(renderOpt.Charset)
+	compile(renderOpt)
 
 	return func(ctx *macaron.Context, rw http.ResponseWriter, req *http.Request) {
 		if macaron.Env == macaron.DEV {
-			compile(opt)
+			compile(renderOpt)
 		}
 		r := &render{
 			TplRender: &macaron.TplRender{
 				ResponseWriter: rw,
 				Req:            req,
 				Opt: macaron.RenderOptions{
-					IndentJSON: opt.IndentJSON,
-					IndentXML:  opt.IndentXML,
-					PrefixJSON: opt.PrefixJSON,
-					PrefixXML:  opt.PrefixXML,
+					IndentJSON: renderOpt.IndentJSON,
+					IndentXML:  renderOpt.IndentXML,
+					PrefixJSON: renderOpt.PrefixJSON,
+					PrefixXML:  renderOpt.PrefixXML,
 				},
 				CompiledCharset: cs,
 			},
 			ResponseWriter:  rw,
-			opt:             opt,
+			opt:             renderOpt,
 			compiledCharset: cs,
 		}
 		ctx.Render = r
@@ -219,4 +220,10 @@ func (r *render) HTMLString(name string, data interface{}, _ ...macaron.HTMLOpti
 	}
 
 	return out, nil
+}
+
+// SetTemplatePath changes templates path.
+func (r *render) SetTemplatePath(newPath string) {
+	renderOpt.Directory = newPath
+	compile(renderOpt)
 }

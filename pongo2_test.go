@@ -1,4 +1,4 @@
-// Copyright 2014 Unknown
+// Copyright 2014 Unknwon
 //
 // Licensed under the Apache License, Version 2.0 (the "License"): you may
 // not use this file except in compliance with the License. You may obtain
@@ -60,6 +60,7 @@ func Test_Render_HTML(t *testing.T) {
 		r.HTML(200, "hello", map[string]interface{}{
 			"Name": "jeremy",
 		})
+		r.SetTemplatePath("fixtures/basic2")
 	})
 
 	res := httptest.NewRecorder()
@@ -70,6 +71,16 @@ func Test_Render_HTML(t *testing.T) {
 	expect(t, res.Code, 200)
 	expect(t, res.Header().Get(ContentType), ContentHTML+"; charset=UTF-8")
 	expect(t, res.Body.String(), "<h1>Hello jeremy</h1>\n")
+
+	// Change templates path.
+	res = httptest.NewRecorder()
+	req, _ = http.NewRequest("GET", "/foobar", nil)
+
+	m.ServeHTTP(res, req)
+
+	expect(t, res.Code, 200)
+	expect(t, res.Header().Get(ContentType), ContentHTML+"; charset=UTF-8")
+	expect(t, res.Body.String(), "<h1>What's up, jeremy</h1>\n")
 }
 
 func Test_Render_XHTML(t *testing.T) {
