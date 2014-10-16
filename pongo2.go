@@ -223,6 +223,7 @@ func (r *render) HTMLString(name string, data interface{}, _ ...macaron.HTMLOpti
 }
 
 // SetTemplatePath changes templates path.
+// FIXME: does not support Host Switcher.
 func (r *render) SetTemplatePath(newPath string) {
 	renderOpt.Directory = newPath
 	compile(renderOpt)
