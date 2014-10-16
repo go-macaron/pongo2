@@ -154,7 +154,7 @@ func Pongoer(options ...Options) macaron.Handler {
 			TplRender: &macaron.TplRender{
 				ResponseWriter: rw,
 				Req:            req,
-				Opt: macaron.RenderOptions{
+				Opt: &macaron.RenderOptions{
 					IndentJSON: renderOpt.IndentJSON,
 					IndentXML:  renderOpt.IndentXML,
 					PrefixJSON: renderOpt.PrefixJSON,
