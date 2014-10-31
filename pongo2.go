@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/Unknwon/macaron"
-	"github.com/flosch/pongo2"
+	"gopkg.in/flosch/pongo2.v3"
 )
 
 const (
