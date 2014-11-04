@@ -44,8 +44,6 @@ const (
 )
 
 var (
-	hasRegistered bool
-
 	tplSets    = make(map[string]map[string]*pongo2.Template)
 	tplSetOpts = make(map[string]*Options)
 	lock       sync.RWMutex
@@ -146,6 +144,9 @@ func prepareOptions(options []Options) *Options {
 	if len(opt.HTMLContentType) == 0 {
 		opt.HTMLContentType = ContentHTML
 	}
+
+	lock.RLock()
+	defer lock.RUnlock()
 
 	tplSetOpts[opt.Name] = &opt
 	return &opt
