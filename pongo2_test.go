@@ -46,7 +46,7 @@ func Test_Render_Bad_HTML(t *testing.T) {
 	m.ServeHTTP(res, req)
 
 	expect(t, res.Code, 500)
-	expect(t, res.Body.String(), "pongo2: \"nope\" is undefined\n")
+	expect(t, res.Body.String(), "pongo2: template \"nope\" is undefined\n")
 }
 
 func Test_Render_HTML(t *testing.T) {
@@ -54,13 +54,22 @@ func Test_Render_HTML(t *testing.T) {
 	m.Use(Pongoer(Options{
 		Directory: "fixtures/basic",
 	}))
+	m.Use(Pongoer(Options{
+		Name:      "basic2",
+		Directory: "fixtures/basic2",
+	}))
 
 	// routing
 	m.Get("/foobar", func(r macaron.Render) {
 		r.HTML(200, "hello", map[string]interface{}{
 			"Name": "jeremy",
 		})
-		r.SetTemplatePath("fixtures/basic2")
+	})
+
+	m.Get("/foobar2", func(r macaron.Render) {
+		r.HTMLSet(200, "basic2", "hello", map[string]interface{}{
+			"Name": "jeremy",
+		})
 	})
 
 	res := httptest.NewRecorder()
@@ -74,7 +83,7 @@ func Test_Render_HTML(t *testing.T) {
 
 	// Change templates path.
 	res = httptest.NewRecorder()
-	req, _ = http.NewRequest("GET", "/foobar", nil)
+	req, _ = http.NewRequest("GET", "/foobar2", nil)
 
 	m.ServeHTTP(res, req)
 

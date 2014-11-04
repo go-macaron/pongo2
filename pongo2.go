@@ -39,10 +39,16 @@ const (
 	defaultCharset = "UTF-8"
 )
 
+const (
+	_DEFAULT_TPL_SET_NAME = "DEFAULT"
+)
+
 var (
-	renderOpt Options
-	tplMap    map[string]*pongo2.Template
-	lock      sync.RWMutex // Go map is not safe.
+	hasRegistered bool
+
+	tplSets    = make(map[string]map[string]*pongo2.Template)
+	tplSetOpts = make(map[string]*Options)
+	lock       sync.RWMutex
 )
 
 func prepareCharset(charset string) string {
@@ -60,14 +66,14 @@ func getExt(s string) string {
 	return "." + strings.Join(strings.Split(s, ".")[1:], ".")
 }
 
-func compile(options Options) {
+func compile(options *Options) {
 	lock.Lock()
 	defer lock.Unlock()
 
 	dir := options.Directory
-	tplMap = make(map[string]*pongo2.Template)
+	tplMap := make(map[string]*pongo2.Template)
 
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		r, err := filepath.Rel(dir, path)
 		if err != nil {
 			return err
@@ -89,11 +95,17 @@ func compile(options Options) {
 		}
 
 		return nil
-	})
+	}); err != nil {
+		panic("fail to walk templates directory: " + err.Error())
+	}
+
+	tplSets[options.Name] = tplMap
 }
 
 // Options represents a struct for specifying configuration options for the Render middleware.
 type Options struct {
+	// Name of template set, leave empty to be default.
+	Name string
 	// Directory to load templates. Default is "templates"
 	Directory string
 	// Extensions to parse template files from. Defaults to [".tmpl", ".html"]
@@ -114,13 +126,17 @@ type Options struct {
 	HTMLContentType string
 }
 
-func prepareOptions(options []Options) Options {
+func prepareOptions(options []Options) *Options {
+
 	var opt Options
 	if len(options) > 0 {
 		opt = options[0]
 	}
 
 	// Defaults
+	if len(opt.Name) == 0 {
+		opt.Name = _DEFAULT_TPL_SET_NAME
+	}
 	if len(opt.Directory) == 0 {
 		opt.Directory = "templates"
 	}
@@ -131,7 +147,8 @@ func prepareOptions(options []Options) Options {
 		opt.HTMLContentType = ContentHTML
 	}
 
-	return opt
+	tplSetOpts[opt.Name] = &opt
+	return &opt
 }
 
 // Pongoer is a Middleware that maps a macaron.Render service into the Macaron handler chain.
@@ -142,14 +159,13 @@ func prepareOptions(options []Options) Options {
 // If MACARON_ENV is set to "" or "development" then templates will be recompiled on every request. For more performance, set the
 // MACARON_ENV environment variable to "production".
 func Pongoer(options ...Options) macaron.Handler {
-	renderOpt = prepareOptions(options)
-	cs := prepareCharset(renderOpt.Charset)
-	compile(renderOpt)
+	opt := prepareOptions(options)
+	cs := prepareCharset(opt.Charset)
+	compile(opt)
 
 	return func(ctx *macaron.Context, rw http.ResponseWriter, req *http.Request) {
-		if macaron.Env == macaron.DEV {
-			compile(renderOpt)
-		}
+		// Other than template files, all options follow DEFAULT template set.
+		renderOpt := tplSetOpts[_DEFAULT_TPL_SET_NAME]
 		r := &render{
 			TplRender: &macaron.TplRender{
 				ResponseWriter: rw,
@@ -163,7 +179,6 @@ func Pongoer(options ...Options) macaron.Handler {
 				CompiledCharset: cs,
 			},
 			ResponseWriter:  rw,
-			opt:             renderOpt,
 			compiledCharset: cs,
 		}
 		ctx.Render = r
@@ -174,7 +189,6 @@ func Pongoer(options ...Options) macaron.Handler {
 type render struct {
 	*macaron.TplRender
 	http.ResponseWriter
-	opt             Options
 	compiledCharset string
 
 	startTime time.Time
@@ -184,19 +198,30 @@ func data2Context(data interface{}) pongo2.Context {
 	return pongo2.Context(data.(map[string]interface{}))
 }
 
-func (r *render) HTML(status int, name string, data interface{}, _ ...macaron.HTMLOptions) {
+func (r *render) renderHTML(status int, setName, tplName string, data interface{}) {
 	r.startTime = time.Now()
+
+	opt := tplSetOpts[setName]
+	if macaron.Env == macaron.DEV {
+		compile(opt)
+	}
 
 	lock.RLock()
 	defer lock.RUnlock()
 
-	t := tplMap[name]
-	if t == nil {
-		http.Error(r, "pongo2: \""+name+"\" is undefined", http.StatusInternalServerError)
+	set := tplSets[setName]
+	if set == nil {
+		http.Error(r, "pongo2: template set \""+tplName+"\" is undefined", http.StatusInternalServerError)
 		return
 	}
 
-	r.Header().Set(ContentType, r.opt.HTMLContentType+r.compiledCharset)
+	t := set[tplName]
+	if t == nil {
+		http.Error(r, "pongo2: template \""+tplName+"\" is undefined", http.StatusInternalServerError)
+		return
+	}
+
+	r.Header().Set(ContentType, opt.HTMLContentType+r.compiledCharset)
 	r.WriteHeader(status)
 	if err := t.ExecuteWriter(data2Context(data), r); err != nil {
 		http.Error(r, err.Error(), http.StatusInternalServerError)
@@ -204,11 +229,19 @@ func (r *render) HTML(status int, name string, data interface{}, _ ...macaron.HT
 	}
 }
 
+func (r *render) HTML(status int, name string, data interface{}, _ ...macaron.HTMLOptions) {
+	r.renderHTML(status, _DEFAULT_TPL_SET_NAME, name, data)
+}
+
+func (r *render) HTMLSet(status int, setName, tplName string, data interface{}, _ ...macaron.HTMLOptions) {
+	r.renderHTML(status, setName, tplName, data)
+}
+
 func (r *render) HTMLString(name string, data interface{}, _ ...macaron.HTMLOptions) (string, error) {
 	lock.RLock()
 	defer lock.RUnlock()
 
-	t := tplMap[name]
+	t := tplSets[_DEFAULT_TPL_SET_NAME][name]
 	if t == nil {
 		http.Error(r, "pongo2: \""+name+"\" is undefined", http.StatusInternalServerError)
 		return "", nil
@@ -220,11 +253,4 @@ func (r *render) HTMLString(name string, data interface{}, _ ...macaron.HTMLOpti
 	}
 
 	return out, nil
-}
-
-// SetTemplatePath changes templates path.
-// FIXME: does not support Host Switcher.
-func (r *render) SetTemplatePath(newPath string) {
-	renderOpt.Directory = newPath
-	compile(renderOpt)
 }
