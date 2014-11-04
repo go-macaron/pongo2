@@ -64,6 +64,7 @@ func Test_Render_HTML(t *testing.T) {
 		r.HTML(200, "hello", map[string]interface{}{
 			"Name": "jeremy",
 		})
+		r.SetTemplatePath("", "fixtures/basic2")
 	})
 
 	m.Get("/foobar2", func(r macaron.Render) {
@@ -82,6 +83,16 @@ func Test_Render_HTML(t *testing.T) {
 	expect(t, res.Body.String(), "<h1>Hello jeremy</h1>\n")
 
 	// Change templates path.
+	res = httptest.NewRecorder()
+	req, _ = http.NewRequest("GET", "/foobar", nil)
+
+	m.ServeHTTP(res, req)
+
+	expect(t, res.Code, 200)
+	expect(t, res.Header().Get(ContentType), ContentHTML+"; charset=UTF-8")
+	expect(t, res.Body.String(), "<h1>What's up, jeremy</h1>\n")
+
+	// Render with another template set.
 	res = httptest.NewRecorder()
 	req, _ = http.NewRequest("GET", "/foobar2", nil)
 

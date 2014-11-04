@@ -198,6 +198,18 @@ func data2Context(data interface{}) pongo2.Context {
 	return pongo2.Context(data.(map[string]interface{}))
 }
 
+func getTemplate(setName, tplName string) (*pongo2.Template, error) {
+	set := tplSets[setName]
+	if set == nil {
+		return nil, fmt.Errorf("pongo2: template set \"%s\" is undefined", setName)
+	}
+	t := set[tplName]
+	if t == nil {
+		return nil, fmt.Errorf("pongo2: template \"%s\" is undefined", tplName)
+	}
+	return t, nil
+}
+
 func (r *render) renderHTML(status int, setName, tplName string, data interface{}) {
 	r.startTime = time.Now()
 
@@ -209,15 +221,9 @@ func (r *render) renderHTML(status int, setName, tplName string, data interface{
 	lock.RLock()
 	defer lock.RUnlock()
 
-	set := tplSets[setName]
-	if set == nil {
-		http.Error(r, "pongo2: template set \""+setName+"\" is undefined", http.StatusInternalServerError)
-		return
-	}
-
-	t := set[tplName]
-	if t == nil {
-		http.Error(r, "pongo2: template \""+tplName+"\" is undefined", http.StatusInternalServerError)
+	t, err := getTemplate(setName, tplName)
+	if err != nil {
+		http.Error(r, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -246,22 +252,12 @@ func (r *render) renderHTMLString(setName, tplName string, data interface{}) (st
 	lock.RLock()
 	defer lock.RUnlock()
 
-	set := tplSets[setName]
-	if set == nil {
-		return "", fmt.Errorf("pongo2: template set \"%s\" is undefined", setName)
-	}
-
-	t := set[tplName]
-	if t == nil {
-		return "", fmt.Errorf("pongo2: template \"%s\" is undefined", tplName)
-	}
-
-	out, err := t.Execute(data2Context(data))
+	t, err := getTemplate(setName, tplName)
 	if err != nil {
 		return "", err
 	}
 
-	return out, nil
+	return t.Execute(data2Context(data))
 }
 
 func (r *render) HTMLString(name string, data interface{}, _ ...macaron.HTMLOptions) (string, error) {
@@ -270,4 +266,13 @@ func (r *render) HTMLString(name string, data interface{}, _ ...macaron.HTMLOpti
 
 func (r *render) HTMLSetString(setName, tplName string, data interface{}, _ ...macaron.HTMLOptions) (string, error) {
 	return r.renderHTMLString(setName, tplName, data)
+}
+
+func (r *render) SetTemplatePath(setName, dir string) {
+	if len(setName) == 0 {
+		setName = _DEFAULT_TPL_SET_NAME
+	}
+	opt := tplSetOpts[setName]
+	opt.Directory = dir
+	compile(opt)
 }
