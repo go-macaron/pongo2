@@ -211,7 +211,7 @@ func (r *render) renderHTML(status int, setName, tplName string, data interface{
 
 	set := tplSets[setName]
 	if set == nil {
-		http.Error(r, "pongo2: template set \""+tplName+"\" is undefined", http.StatusInternalServerError)
+		http.Error(r, "pongo2: template set \""+setName+"\" is undefined", http.StatusInternalServerError)
 		return
 	}
 
@@ -237,14 +237,23 @@ func (r *render) HTMLSet(status int, setName, tplName string, data interface{}, 
 	r.renderHTML(status, setName, tplName, data)
 }
 
-func (r *render) HTMLString(name string, data interface{}, _ ...macaron.HTMLOptions) (string, error) {
+func (r *render) renderHTMLString(setName, tplName string, data interface{}) (string, error) {
+	opt := tplSetOpts[setName]
+	if macaron.Env == macaron.DEV {
+		compile(opt)
+	}
+
 	lock.RLock()
 	defer lock.RUnlock()
 
-	t := tplSets[_DEFAULT_TPL_SET_NAME][name]
+	set := tplSets[setName]
+	if set == nil {
+		return "", fmt.Errorf("pongo2: template set \"%s\" is undefined", setName)
+	}
+
+	t := set[tplName]
 	if t == nil {
-		http.Error(r, "pongo2: \""+name+"\" is undefined", http.StatusInternalServerError)
-		return "", nil
+		return "", fmt.Errorf("pongo2: template \"%s\" is undefined", tplName)
 	}
 
 	out, err := t.Execute(data2Context(data))
@@ -253,4 +262,12 @@ func (r *render) HTMLString(name string, data interface{}, _ ...macaron.HTMLOpti
 	}
 
 	return out, nil
+}
+
+func (r *render) HTMLString(name string, data interface{}, _ ...macaron.HTMLOptions) (string, error) {
+	return r.renderHTMLString(_DEFAULT_TPL_SET_NAME, name, data)
+}
+
+func (r *render) HTMLSetString(setName, tplName string, data interface{}, _ ...macaron.HTMLOptions) (string, error) {
+	return r.renderHTMLString(setName, tplName, data)
 }
