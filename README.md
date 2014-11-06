@@ -1,9 +1,11 @@
-pongo2
+pongo2 [![](http://gocover.io/_badge/github.com/macaron-contrib/pongo2)](http://gocover.io/github.com/macaron-contrib/pongo2)
 ======
 
-Middleware pongo2 is a [pongo2](https://github.com/flosch/pongo2) template engine support for [Macaron](https://github.com/Unknwon/macaron).
+Middleware pongo2 is a [pongo2](https://github.com/flosch/pongo2).**v3** template engine support for [Macaron](https://github.com/Unknwon/macaron).
 
 [API Reference](https://gowalker.org/github.com/macaron-contrib/pongo2)
+
+[Full Documentation](http://macaron.gogs.io/docs/middlewares/templating.html)
 
 ### Installation
 
@@ -16,20 +18,20 @@ Middleware pongo2 is a [pongo2](https://github.com/flosch/pongo2) template engin
 package main
 
 import (
-  "github.com/Unknwon/macaron"
-  "github.com/macaron-contrib/pongo2"
+    "github.com/Unknwon/macaron"
+    "github.com/macaron-contrib/pongo2"
 )
 
 func main() {
-  m := macaron.Classic()
-  m.Use(pongo2.Pongoer())
-
-  m.Get("/", func(ctx *macaron.Context) {
-  	ctx.Data["Name"] = "joe"
-    ctx.HTML(200, "hello")
-  })
-
-  m.Run()
+    m := macaron.Classic()
+    m.Use(pongo2.Pongoer())
+    
+    m.Get("/", func(ctx *macaron.Context) {
+        ctx.Data["Name"] = "jeremy"
+        ctx.HTML(200, "hello") // 200 is the response code.
+    })
+    
+    m.Run()
 }
 ```
 
@@ -45,13 +47,19 @@ func main() {
 ```go
 // ...
 m.Use(pongo2.Pongoer(pongo2.Options{
-  Directory: "templates", // Specify what path to load the templates from.
-  Extensions: []string{".tmpl", ".html"}, // Specify extensions to load for templates.
-  Charset: "UTF-8", // Sets encoding for json and html content-types. Default is "UTF-8".
-  IndentJSON: true, // Output human readable JSON
-  IndentXML: true, // Output human readable XML
-  HTMLContentType: "application/xhtml+xml", // Output XHTML content type instead of default "text/html"
-}))
+    // Directory to load templates. Default is "templates".
+    Directory: "templates",
+    // Extensions to parse template files from. Defaults are [".tmpl", ".html"].
+    Extensions: []string{".tmpl", ".html"},
+    // Appends the given charset to the Content-Type header. Default is "UTF-8".
+    Charset: "UTF-8",
+    // Outputs human readable JSON. Default is false.
+    IndentJSON: true,
+    // Outputs human readable XML. Default is false.
+    IndentXML: true,
+    // Allows changing of output to XHTML instead of HTML. Default is "text/html".
+    HTMLContentType: "text/html",
+}))  
 // ...
 ```
 
