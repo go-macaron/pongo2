@@ -12,7 +12,7 @@
 // License for the specific language governing permissions and limitations
 // under the License.
 
-// Package pongo2 is a middleware that provides pongo2 template engine of Macaron.
+// Package pongo2 is a middleware that provides pongo2 template engine for Macaron.
 package pongo2
 
 import (
@@ -244,6 +244,27 @@ func (r *render) HTMLSet(status int, setName, tplName string, data interface{}, 
 	r.renderHTML(status, setName, tplName, data)
 }
 
+func (r *render) HTMLSetBytes(setName, tplName string, data interface{}, _ ...macaron.HTMLOptions) ([]byte, error) {
+	opt := tplSetOpts[setName]
+	if macaron.Env == macaron.DEV {
+		compile(opt)
+	}
+
+	lock.RLock()
+	defer lock.RUnlock()
+
+	t, err := getTemplate(setName, tplName)
+	if err != nil {
+		return []byte(""), err
+	}
+
+	return t.ExecuteBytes(data2Context(data))
+}
+
+func (r *render) HTMLBytes(name string, data interface{}, _ ...macaron.HTMLOptions) ([]byte, error) {
+	return r.HTMLSetBytes(_DEFAULT_TPL_SET_NAME, name, data)
+}
+
 func (r *render) renderHTMLString(setName, tplName string, data interface{}) (string, error) {
 	opt := tplSetOpts[setName]
 	if macaron.Env == macaron.DEV {
@@ -261,12 +282,14 @@ func (r *render) renderHTMLString(setName, tplName string, data interface{}) (st
 	return t.Execute(data2Context(data))
 }
 
-func (r *render) HTMLString(name string, data interface{}, _ ...macaron.HTMLOptions) (string, error) {
-	return r.renderHTMLString(_DEFAULT_TPL_SET_NAME, name, data)
+func (r *render) HTMLSetString(setName, tplName string, data interface{}, _ ...macaron.HTMLOptions) (string, error) {
+	p, err := r.HTMLSetBytes(setName, tplName, data)
+	return string(p), err
 }
 
-func (r *render) HTMLSetString(setName, tplName string, data interface{}, _ ...macaron.HTMLOptions) (string, error) {
-	return r.renderHTMLString(setName, tplName, data)
+func (r *render) HTMLString(name string, data interface{}, _ ...macaron.HTMLOptions) (string, error) {
+	p, err := r.HTMLBytes(name, data)
+	return string(p), err
 }
 
 func (r *render) SetTemplatePath(setName, dir string) {
@@ -276,4 +299,9 @@ func (r *render) SetTemplatePath(setName, dir string) {
 	opt := tplSetOpts[setName]
 	opt.Directory = dir
 	compile(opt)
+}
+
+func (r *render) HasTemplateSet(name string) bool {
+	_, ok := tplSets[name]
+	return ok
 }

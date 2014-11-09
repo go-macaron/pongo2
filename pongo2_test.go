@@ -40,9 +40,11 @@ func Test_Render_HTML(t *testing.T) {
 			r.SetTemplatePath("", "fixtures/basic2")
 		})
 		m.Get("/foobar2", func(r macaron.Render) {
-			r.HTMLSet(200, "basic2", "hello", map[string]interface{}{
-				"Name": "jeremy",
-			})
+			if r.HasTemplateSet("basic2") {
+				r.HTMLSet(200, "basic2", "hello", map[string]interface{}{
+					"Name": "jeremy",
+				})
+			}
 		})
 
 		resp := httptest.NewRecorder()
