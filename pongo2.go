@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -43,31 +44,7 @@ const (
 	_DEFAULT_TPL_SET_NAME = "DEFAULT"
 )
 
-var (
-	tplSets    = make(map[string]map[string]*pongo2.Template)
-	tplSetOpts = make(map[string]*Options)
-	lock       sync.RWMutex
-)
-
-func prepareCharset(charset string) string {
-	if len(charset) != 0 {
-		return "; charset=" + charset
-	}
-
-	return "; charset=" + defaultCharset
-}
-
-func getExt(s string) string {
-	if strings.Index(s, ".") == -1 {
-		return ""
-	}
-	return "." + strings.Join(strings.Split(s, ".")[1:], ".")
-}
-
-func compile(options *Options) {
-	lock.Lock()
-	defer lock.Unlock()
-
+func compile(options *Options) map[string]*pongo2.Template {
 	dir := options.Directory
 	tplMap := make(map[string]*pongo2.Template)
 
@@ -77,7 +54,7 @@ func compile(options *Options) {
 			return err
 		}
 
-		ext := getExt(r)
+		ext := macaron.GetExt(r)
 
 		for _, extension := range options.Extensions {
 			if ext == extension {
@@ -97,7 +74,55 @@ func compile(options *Options) {
 		panic("fail to walk templates directory: " + err.Error())
 	}
 
-	tplSets[options.Name] = tplMap
+	return tplMap
+}
+
+// templateSet represents a template set of type *pongo2.Template.
+type templateSet struct {
+	lock sync.RWMutex
+	sets map[string]map[string]*pongo2.Template
+	dirs map[string]string
+}
+
+func newTemplateSet() *templateSet {
+	return &templateSet{
+		sets: make(map[string]map[string]*pongo2.Template),
+		dirs: make(map[string]string),
+	}
+}
+
+func (ts *templateSet) Set(name string, opt *Options) map[string]*pongo2.Template {
+	tplMap := compile(opt)
+
+	ts.lock.Lock()
+	defer ts.lock.Unlock()
+
+	ts.sets[name] = tplMap
+	ts.dirs[name] = opt.Directory
+	return tplMap
+}
+
+func (ts *templateSet) Get(setName, tplName string) (*pongo2.Template, error) {
+	ts.lock.RLock()
+	defer ts.lock.RUnlock()
+
+	set := ts.sets[setName]
+	if set == nil {
+		return nil, fmt.Errorf("pongo2: template set \"%s\" is undefined", setName)
+	}
+	t := set[tplName]
+	if t == nil {
+		return nil, fmt.Errorf("pongo2: template \"%s\" is undefined", tplName)
+	}
+
+	return t, nil
+}
+
+func (ts *templateSet) GetDir(name string) string {
+	ts.lock.RLock()
+	defer ts.lock.RUnlock()
+
+	return ts.dirs[name]
 }
 
 // Options represents a struct for specifying configuration options for the Render middleware.
@@ -124,8 +149,7 @@ type Options struct {
 	HTMLContentType string
 }
 
-func prepareOptions(options []Options) *Options {
-
+func prepareOptions(options []Options) Options {
 	var opt Options
 	if len(options) > 0 {
 		opt = options[0]
@@ -145,11 +169,53 @@ func prepareOptions(options []Options) *Options {
 		opt.HTMLContentType = ContentHTML
 	}
 
-	lock.RLock()
-	defer lock.RUnlock()
+	return opt
+}
 
-	tplSetOpts[opt.Name] = &opt
-	return &opt
+func renderHandler(opt Options, tplSets []string) macaron.Handler {
+	cs := macaron.PrepareCharset(opt.Charset)
+	ts := newTemplateSet()
+	ts.Set(_DEFAULT_TPL_SET_NAME, &opt)
+
+	var (
+		tmpOpt  Options
+		tplName string
+		tplDir  string
+	)
+	for _, tplSet := range tplSets {
+		infos := strings.Split(tplSet, ":")
+		if len(infos) == 1 {
+			tplDir = infos[0]
+			tplName = path.Base(tplDir)
+		} else {
+			tplName = infos[0]
+			tplDir = infos[1]
+		}
+		tmpOpt = opt
+		tmpOpt.Directory = tplDir
+		ts.Set(tplName, &tmpOpt)
+	}
+
+	return func(ctx *macaron.Context) {
+		r := &render{
+			TplRender: &macaron.TplRender{
+				ResponseWriter: ctx.Resp,
+				Opt: &macaron.RenderOptions{
+					IndentJSON: opt.IndentJSON,
+					IndentXML:  opt.IndentXML,
+					PrefixJSON: opt.PrefixJSON,
+					PrefixXML:  opt.PrefixXML,
+				},
+				CompiledCharset: cs,
+			},
+			ResponseWriter:  ctx.Resp,
+			templateSet:     ts,
+			opt:             &opt,
+			compiledCharset: cs,
+		}
+		ctx.Render = r
+		ctx.MapTo(r, (*macaron.Render)(nil))
+	}
 }
 
 // Pongoer is a Middleware that maps a macaron.Render service into the Macaron handler chain.
@@ -160,36 +226,18 @@ func prepareOptions(options []Options) *Options {
 // If MACARON_ENV is set to "" or "development" then templates will be recompiled on every request. For more performance, set the
 // MACARON_ENV environment variable to "production".
 func Pongoer(options ...Options) macaron.Handler {
-	opt := prepareOptions(options)
-	cs := prepareCharset(opt.Charset)
-	compile(opt)
+	return renderHandler(prepareOptions(options), []string{})
+}
 
-	return func(ctx *macaron.Context, rw http.ResponseWriter, req *http.Request) {
-		// Other than template files, all options follow DEFAULT template set.
-		renderOpt := tplSetOpts[_DEFAULT_TPL_SET_NAME]
-		r := &render{
-			TplRender: &macaron.TplRender{
-				ResponseWriter: rw,
-				Req:            req,
-				Opt: &macaron.RenderOptions{
-					IndentJSON: renderOpt.IndentJSON,
-					IndentXML:  renderOpt.IndentXML,
-					PrefixJSON: renderOpt.PrefixJSON,
-					PrefixXML:  renderOpt.PrefixXML,
-				},
-				CompiledCharset: cs,
-			},
-			ResponseWriter:  rw,
-			compiledCharset: cs,
-		}
-		ctx.Render = r
-		ctx.MapTo(r, (*macaron.Render)(nil))
-	}
+func Pongoers(options Options, tplSets ...string) macaron.Handler {
+	return renderHandler(prepareOptions([]Options{options}), tplSets)
 }
 
 type render struct {
 	*macaron.TplRender
 	http.ResponseWriter
+	*templateSet
+	opt             *Options
 	compiledCharset string
 
 	startTime time.Time
@@ -199,36 +247,22 @@ func data2Context(data interface{}) pongo2.Context {
 	return pongo2.Context(data.(map[string]interface{}))
 }
 
-func getTemplate(setName, tplName string) (*pongo2.Template, error) {
-	set := tplSets[setName]
-	if set == nil {
-		return nil, fmt.Errorf("pongo2: template set \"%s\" is undefined", setName)
-	}
-	t := set[tplName]
-	if t == nil {
-		return nil, fmt.Errorf("pongo2: template \"%s\" is undefined", tplName)
-	}
-	return t, nil
-}
-
 func (r *render) renderHTML(status int, setName, tplName string, data interface{}) {
 	r.startTime = time.Now()
 
-	opt := tplSetOpts[setName]
+	t, err := r.templateSet.Get(setName, tplName)
 	if macaron.Env == macaron.DEV {
-		compile(opt)
+		opt := *r.opt
+		opt.Directory = r.templateSet.GetDir(setName)
+		r.templateSet.Set(setName, &opt)
+		t, err = r.templateSet.Get(setName, tplName)
 	}
-
-	lock.RLock()
-	defer lock.RUnlock()
-
-	t, err := getTemplate(setName, tplName)
 	if err != nil {
 		http.Error(r, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	r.Header().Set(ContentType, opt.HTMLContentType+r.compiledCharset)
+	r.Header().Set(ContentType, r.opt.HTMLContentType+r.compiledCharset)
 	r.WriteHeader(status)
 	if err := t.ExecuteWriter(data2Context(data), r); err != nil {
 		http.Error(r, err.Error(), http.StatusInternalServerError)
@@ -245,15 +279,13 @@ func (r *render) HTMLSet(status int, setName, tplName string, data interface{}, 
 }
 
 func (r *render) HTMLSetBytes(setName, tplName string, data interface{}, _ ...macaron.HTMLOptions) ([]byte, error) {
-	opt := tplSetOpts[setName]
+	t, err := r.templateSet.Get(setName, tplName)
 	if macaron.Env == macaron.DEV {
-		compile(opt)
+		opt := *r.opt
+		opt.Directory = r.templateSet.GetDir(setName)
+		r.templateSet.Set(setName, &opt)
+		t, err = r.templateSet.Get(setName, tplName)
 	}
-
-	lock.RLock()
-	defer lock.RUnlock()
-
-	t, err := getTemplate(setName, tplName)
 	if err != nil {
 		return []byte(""), err
 	}
@@ -266,15 +298,13 @@ func (r *render) HTMLBytes(name string, data interface{}, _ ...macaron.HTMLOptio
 }
 
 func (r *render) renderHTMLString(setName, tplName string, data interface{}) (string, error) {
-	opt := tplSetOpts[setName]
+	t, err := r.templateSet.Get(setName, tplName)
 	if macaron.Env == macaron.DEV {
-		compile(opt)
+		opt := *r.opt
+		opt.Directory = r.templateSet.GetDir(setName)
+		r.templateSet.Set(setName, &opt)
+		t, err = r.templateSet.Get(setName, tplName)
 	}
-
-	lock.RLock()
-	defer lock.RUnlock()
-
-	t, err := getTemplate(setName, tplName)
 	if err != nil {
 		return "", err
 	}
@@ -296,12 +326,12 @@ func (r *render) SetTemplatePath(setName, dir string) {
 	if len(setName) == 0 {
 		setName = _DEFAULT_TPL_SET_NAME
 	}
-	opt := tplSetOpts[setName]
+	opt := *r.opt
 	opt.Directory = dir
-	compile(opt)
+	r.templateSet.Set(setName, &opt)
 }
 
 func (r *render) HasTemplateSet(name string) bool {
-	_, ok := tplSets[name]
+	_, ok := r.templateSet.sets[name]
 	return ok
 }

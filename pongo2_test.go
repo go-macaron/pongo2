@@ -26,13 +26,9 @@ import (
 func Test_Render_HTML(t *testing.T) {
 	Convey("Render HTML", t, func() {
 		m := macaron.Classic()
-		m.Use(Pongoer(Options{
+		m.Use(Pongoers(Options{
 			Directory: "fixtures/basic",
-		}))
-		m.Use(Pongoer(Options{
-			Name:      "basic2",
-			Directory: "fixtures/basic2",
-		}))
+		}, "fixtures/basic2"))
 		m.Get("/foobar", func(r macaron.Render) {
 			r.HTML(200, "hello", map[string]interface{}{
 				"Name": "jeremy",
@@ -52,6 +48,7 @@ func Test_Render_HTML(t *testing.T) {
 		So(err, ShouldBeNil)
 		m.ServeHTTP(resp, req)
 
+		So(resp.Body.String(), ShouldEqual, "<h1>Hello jeremy</h1>")
 		So(resp.Code, ShouldEqual, http.StatusOK)
 		So(resp.Header().Get(ContentType), ShouldEqual, ContentHTML+"; charset=UTF-8")
 		So(resp.Body.String(), ShouldEqual, "<h1>Hello jeremy</h1>")
@@ -79,13 +76,9 @@ func Test_Render_HTML(t *testing.T) {
 
 	Convey("Render HTML and return string", t, func() {
 		m := macaron.Classic()
-		m.Use(Pongoer(Options{
+		m.Use(Pongoers(Options{
 			Directory: "fixtures/basic",
-		}))
-		m.Use(Pongoer(Options{
-			Name:      "basic2",
-			Directory: "fixtures/basic2",
-		}))
+		}, "basic2:fixtures/basic2"))
 		m.Get("/foobar", func(r macaron.Render) {
 			result, err := r.HTMLString("hello", "jeremy")
 			So(err, ShouldBeNil)
@@ -203,13 +196,5 @@ func Test_Render_NoRace(t *testing.T) {
 		go doreq()
 		<-done
 		<-done
-	})
-}
-
-func Test_GetExt(t *testing.T) {
-	Convey("Get extension", t, func() {
-		So(getExt("test"), ShouldBeBlank)
-		So(getExt("test.tmpl"), ShouldEqual, ".tmpl")
-		So(getExt("test.go.tmpl"), ShouldEqual, ".go.tmpl")
 	})
 }
