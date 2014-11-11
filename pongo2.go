@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -127,8 +126,6 @@ func (ts *templateSet) GetDir(name string) string {
 
 // Options represents a struct for specifying configuration options for the Render middleware.
 type Options struct {
-	// Name of template set, leave empty to be default.
-	Name string
 	// Directory to load templates. Default is "templates"
 	Directory string
 	// Extensions to parse template files from. Defaults to [".tmpl", ".html"]
@@ -156,9 +153,6 @@ func prepareOptions(options []Options) Options {
 	}
 
 	// Defaults
-	if len(opt.Name) == 0 {
-		opt.Name = _DEFAULT_TPL_SET_NAME
-	}
 	if len(opt.Directory) == 0 {
 		opt.Directory = "templates"
 	}
@@ -177,20 +171,9 @@ func renderHandler(opt Options, tplSets []string) macaron.Handler {
 	ts := newTemplateSet()
 	ts.Set(_DEFAULT_TPL_SET_NAME, &opt)
 
-	var (
-		tmpOpt  Options
-		tplName string
-		tplDir  string
-	)
+	var tmpOpt Options
 	for _, tplSet := range tplSets {
-		infos := strings.Split(tplSet, ":")
-		if len(infos) == 1 {
-			tplDir = infos[0]
-			tplName = path.Base(tplDir)
-		} else {
-			tplName = infos[0]
-			tplDir = infos[1]
-		}
+		tplName, tplDir := macaron.ParseTplSet(tplSet)
 		tmpOpt = opt
 		tmpOpt.Directory = tplDir
 		ts.Set(tplName, &tmpOpt)
@@ -295,21 +278,6 @@ func (r *render) HTMLSetBytes(setName, tplName string, data interface{}, _ ...ma
 
 func (r *render) HTMLBytes(name string, data interface{}, _ ...macaron.HTMLOptions) ([]byte, error) {
 	return r.HTMLSetBytes(_DEFAULT_TPL_SET_NAME, name, data)
-}
-
-func (r *render) renderHTMLString(setName, tplName string, data interface{}) (string, error) {
-	t, err := r.templateSet.Get(setName, tplName)
-	if macaron.Env == macaron.DEV {
-		opt := *r.opt
-		opt.Directory = r.templateSet.GetDir(setName)
-		r.templateSet.Set(setName, &opt)
-		t, err = r.templateSet.Get(setName, tplName)
-	}
-	if err != nil {
-		return "", err
-	}
-
-	return t.Execute(data2Context(data))
 }
 
 func (r *render) HTMLSetString(setName, tplName string, data interface{}, _ ...macaron.HTMLOptions) (string, error) {
