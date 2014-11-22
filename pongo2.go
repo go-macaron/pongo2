@@ -17,9 +17,8 @@ package pongo2
 
 import (
 	"fmt"
+	"log"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -43,34 +42,23 @@ const (
 	_DEFAULT_TPL_SET_NAME = "DEFAULT"
 )
 
-func compile(options *Options) map[string]*pongo2.Template {
-	dir := options.Directory
+func compile(opt Options) map[string]*pongo2.Template {
 	tplMap := make(map[string]*pongo2.Template)
 
-	if err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		r, err := filepath.Rel(dir, path)
+	if opt.TemplateFileSystem == nil {
+		opt.TemplateFileSystem = macaron.NewTemplateFileSystem(macaron.RenderOptions{
+			Directory:  opt.Directory,
+			Extensions: opt.Extensions,
+		})
+	}
+
+	for _, f := range opt.TemplateFileSystem.ListFiles() {
+		t, err := pongo2.FromString(string(f.Data()))
 		if err != nil {
-			return err
+			// Bomb out if parse fails. We don't want any silent server starts.
+			log.Fatalf("\"%s\": %v", f.Name(), err)
 		}
-
-		ext := macaron.GetExt(r)
-
-		for _, extension := range options.Extensions {
-			if ext == extension {
-				name := (r[0 : len(r)-len(ext)])
-				// Bomb out if parse fails. We don't want any silent server starts.
-				t, err := pongo2.FromFile(path)
-				if err != nil {
-					panic(fmt.Errorf("\"%s\": %v", path, err))
-				}
-				tplMap[strings.Replace(name, "\\", "/", -1)] = t
-				break
-			}
-		}
-
-		return nil
-	}); err != nil {
-		panic("fail to walk templates directory: " + err.Error())
+		tplMap[strings.Replace(f.Name(), "\\", "/", -1)] = t
 	}
 
 	return tplMap
@@ -91,7 +79,7 @@ func newTemplateSet() *templateSet {
 }
 
 func (ts *templateSet) Set(name string, opt *Options) map[string]*pongo2.Template {
-	tplMap := compile(opt)
+	tplMap := compile(*opt)
 
 	ts.lock.Lock()
 	defer ts.lock.Unlock()
@@ -144,6 +132,8 @@ type Options struct {
 	PrefixXML []byte
 	// Allows changing of output to XHTML instead of HTML. Default is "text/html"
 	HTMLContentType string
+	// TemplateFileSystem is the interface for supporting any implmentation of template file system.
+	macaron.TemplateFileSystem
 }
 
 func prepareOptions(options []Options) Options {

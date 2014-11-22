@@ -1,4 +1,4 @@
-pongo2 [![](http://gocover.io/_badge/github.com/macaron-contrib/pongo2)](http://gocover.io/github.com/macaron-contrib/pongo2)
+pongo2 [![Build Status](https://drone.io/github.com/macaron-contrib/pongo2/status.png)](https://drone.io/github.com/macaron-contrib/pongo2/latest) [![](http://gocover.io/_badge/github.com/macaron-contrib/pongo2)](http://gocover.io/github.com/macaron-contrib/pongo2)
 ======
 
 Middleware pongo2 is a [pongo2](https://github.com/flosch/pongo2).**v3** template engine support for [Macaron](https://github.com/Unknwon/macaron).

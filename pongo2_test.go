@@ -166,8 +166,6 @@ func Test_Render_Extensions(t *testing.T) {
 		So(err, ShouldBeNil)
 		m.ServeHTTP(resp, req)
 
-		So(resp.Code, ShouldEqual, http.StatusOK)
-		So(resp.Header().Get(ContentType), ShouldEqual, ContentHTML+"; charset=UTF-8")
 		So(resp.Body.String(), ShouldEqual, "Hypertext!")
 	})
 }
