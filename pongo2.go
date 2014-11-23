@@ -50,7 +50,7 @@ func compile(opt Options) map[string]*pongo2.Template {
 		opt.TemplateFileSystem = macaron.NewTemplateFileSystem(macaron.RenderOptions{
 			Directory:  opt.Directory,
 			Extensions: opt.Extensions,
-		})
+		}, true)
 	}
 
 	for _, f := range opt.TemplateFileSystem.ListFiles() {
