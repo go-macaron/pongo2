@@ -119,8 +119,6 @@ type Options struct {
 	Directory string
 	// Extensions to parse template files from. Defaults to [".tmpl", ".html"]
 	Extensions []string
-	// Funcs is a slice of FuncMaps to apply to the template upon compilation. This is useful for helper functions. Defaults to [].
-	// Funcs []template.FuncMap
 	// Appends the given charset to the Content-Type header. Default is "UTF-8".
 	Charset string
 	// Outputs human readable JSON
