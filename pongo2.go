@@ -180,7 +180,6 @@ func renderHandler(opt Options, tplSets []string) macaron.Handler {
 				},
 				CompiledCharset: cs,
 			},
-			ResponseWriter:  ctx.Resp,
 			templateSet:     ts,
 			opt:             &opt,
 			compiledCharset: cs,
@@ -207,7 +206,6 @@ func Pongoers(options Options, tplSets ...string) macaron.Handler {
 
 type render struct {
 	*macaron.TplRender
-	http.ResponseWriter
 	*templateSet
 	opt             *Options
 	compiledCharset string
