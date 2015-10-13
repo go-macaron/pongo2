@@ -13,4 +13,4 @@ Middleware pongo2 is a [pongo2](https://github.com/flosch/pongo2).**v3** templat
 
 ## License
 
-This project is under Apache v2 License. See the [LICENSE](LICENSE) file for the full license text.
+This project is under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for the full license text.
