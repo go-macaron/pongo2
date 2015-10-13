@@ -1,4 +1,4 @@
-// Copyright 2014 Unknwon
+// Copyright 2014 The Macaron Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License"): you may
 // not use this file except in compliance with the License. You may obtain
@@ -19,13 +19,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/Unknwon/macaron"
 	. "github.com/smartystreets/goconvey/convey"
+	"gopkg.in/macaron.v1"
 )
 
 func Test_Render_HTML(t *testing.T) {
 	Convey("Render HTML", t, func() {
-		m := macaron.Classic()
+		m := macaron.New()
 		m.Use(Pongoers(Options{
 			Directory: "fixtures/basic",
 		}, "fixtures/basic2"))
@@ -50,7 +50,7 @@ func Test_Render_HTML(t *testing.T) {
 
 		So(resp.Body.String(), ShouldEqual, "<h1>Hello jeremy</h1>")
 		So(resp.Code, ShouldEqual, http.StatusOK)
-		So(resp.Header().Get(ContentType), ShouldEqual, ContentHTML+"; charset=UTF-8")
+		So(resp.Header().Get(_CONTENT_TYPE), ShouldEqual, _CONTENT_HTML+"; charset=UTF-8")
 		So(resp.Body.String(), ShouldEqual, "<h1>Hello jeremy</h1>")
 
 		resp = httptest.NewRecorder()
@@ -59,7 +59,7 @@ func Test_Render_HTML(t *testing.T) {
 		m.ServeHTTP(resp, req)
 
 		So(resp.Code, ShouldEqual, http.StatusOK)
-		So(resp.Header().Get(ContentType), ShouldEqual, ContentHTML+"; charset=UTF-8")
+		So(resp.Header().Get(_CONTENT_TYPE), ShouldEqual, _CONTENT_HTML+"; charset=UTF-8")
 		So(resp.Body.String(), ShouldEqual, "<h1>What's up, jeremy</h1>")
 
 		Convey("Change render templates path", func() {
@@ -69,23 +69,27 @@ func Test_Render_HTML(t *testing.T) {
 			m.ServeHTTP(resp, req)
 
 			So(resp.Code, ShouldEqual, http.StatusOK)
-			So(resp.Header().Get(ContentType), ShouldEqual, ContentHTML+"; charset=UTF-8")
+			So(resp.Header().Get(_CONTENT_TYPE), ShouldEqual, _CONTENT_HTML+"; charset=UTF-8")
 			So(resp.Body.String(), ShouldEqual, "<h1>What's up, jeremy</h1>")
 		})
 	})
 
 	Convey("Render HTML and return string", t, func() {
-		m := macaron.Classic()
+		m := macaron.New()
 		m.Use(Pongoers(Options{
 			Directory: "fixtures/basic",
 		}, "basic2:fixtures/basic2"))
 		m.Get("/foobar", func(r macaron.Render) {
-			result, err := r.HTMLString("hello", "jeremy")
+			result, err := r.HTMLString("hello", map[string]interface{}{
+				"Name": "jeremy",
+			})
 			So(err, ShouldBeNil)
 			So(result, ShouldEqual, "<h1>Hello jeremy</h1>")
 		})
 		m.Get("/foobar2", func(r macaron.Render) {
-			result, err := r.HTMLSetString("basic2", "hello", "jeremy")
+			result, err := r.HTMLSetString("basic2", "hello", map[string]interface{}{
+				"Name": "jeremy",
+			})
 			So(err, ShouldBeNil)
 			So(result, ShouldEqual, "<h1>What's up, jeremy</h1>")
 		})
@@ -102,7 +106,7 @@ func Test_Render_HTML(t *testing.T) {
 	})
 
 	Convey("Render bad HTML", t, func() {
-		m := macaron.Classic()
+		m := macaron.New()
 		m.Use(Pongoer(Options{
 			Directory: "fixtures/basic",
 		}))
@@ -122,10 +126,10 @@ func Test_Render_HTML(t *testing.T) {
 
 func Test_Render_XHTML(t *testing.T) {
 	Convey("Render XHTML", t, func() {
-		m := macaron.Classic()
+		m := macaron.New()
 		m.Use(Pongoer(Options{
 			Directory:       "fixtures/basic",
-			HTMLContentType: ContentXHTML,
+			HTMLContentType: _CONTENT_XHTML,
 		}))
 		m.Get("/foobar", func(r macaron.Render) {
 			r.HTML(200, "hello", map[string]interface{}{
@@ -139,20 +143,20 @@ func Test_Render_XHTML(t *testing.T) {
 		m.ServeHTTP(resp, req)
 
 		So(resp.Code, ShouldEqual, http.StatusOK)
-		So(resp.Header().Get(ContentType), ShouldEqual, ContentXHTML+"; charset=UTF-8")
+		So(resp.Header().Get(_CONTENT_TYPE), ShouldEqual, _CONTENT_XHTML+"; charset=UTF-8")
 		So(resp.Body.String(), ShouldEqual, "<h1>Hello jeremy</h1>")
 	})
 
-	m := macaron.Classic()
+	m := macaron.New()
 	m.Use(Pongoer(Options{
 		Directory:       "fixtures/basic",
-		HTMLContentType: ContentXHTML,
+		HTMLContentType: _CONTENT_XHTML,
 	}))
 }
 
 func Test_Render_Extensions(t *testing.T) {
 	Convey("Render with extensions", t, func() {
-		m := macaron.Classic()
+		m := macaron.New()
 		m.Use(Pongoer(Options{
 			Directory:  "fixtures/basic",
 			Extensions: []string{".tmpl", ".html"},
@@ -172,7 +176,7 @@ func Test_Render_Extensions(t *testing.T) {
 
 func Test_Render_NoRace(t *testing.T) {
 	Convey("Make sure render has no race", t, func() {
-		m := macaron.Classic()
+		m := macaron.New()
 		m.Use(Pongoer(Options{
 			Directory: "fixtures/basic",
 		}))

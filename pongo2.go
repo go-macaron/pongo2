@@ -1,4 +1,4 @@
-// Copyright 2014 Unknwon
+// Copyright 2014 The Macaron Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License"): you may
 // not use this file except in compliance with the License. You may obtain
@@ -24,19 +24,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Unknwon/macaron"
 	"gopkg.in/flosch/pongo2.v3"
+	"gopkg.in/macaron.v1"
 )
 
 const (
-	ContentType    = "Content-Type"
-	ContentLength  = "Content-Length"
-	ContentBinary  = "application/octet-stream"
-	ContentJSON    = "application/json"
-	ContentHTML    = "text/html"
-	ContentXHTML   = "application/xhtml+xml"
-	ContentXML     = "text/xml"
-	defaultCharset = "UTF-8"
+	_CONTENT_TYPE  = "Content-Type"
+	_CONTENT_HTML  = "text/html"
+	_CONTENT_XHTML = "application/xhtml+xml"
 )
 
 const (
@@ -149,7 +144,7 @@ func prepareOptions(options []Options) Options {
 		opt.Extensions = []string{".tmpl", ".html"}
 	}
 	if len(opt.HTMLContentType) == 0 {
-		opt.HTMLContentType = ContentHTML
+		opt.HTMLContentType = _CONTENT_HTML
 	}
 
 	return opt
@@ -232,7 +227,7 @@ func (r *render) renderHTML(status int, setName, tplName string, data interface{
 		return
 	}
 
-	r.Header().Set(ContentType, r.opt.HTMLContentType+r.compiledCharset)
+	r.Header().Set(_CONTENT_TYPE, r.opt.HTMLContentType+r.compiledCharset)
 	r.WriteHeader(status)
 	if err := t.ExecuteWriter(data2Context(data), r); err != nil {
 		http.Error(r, err.Error(), http.StatusInternalServerError)
