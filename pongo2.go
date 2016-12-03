@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"path"
 	"strings"
 	"sync"
 	"time"
@@ -45,11 +44,11 @@ func compile(opt Options) map[string]*pongo2.Template {
 		opt.TemplateFileSystem = macaron.NewTemplateFileSystem(macaron.RenderOptions{
 			Directory:  opt.Directory,
 			Extensions: opt.Extensions,
-		}, true)
+		}, false)
 	}
 
 	for _, f := range opt.TemplateFileSystem.ListFiles() {
-		t, err := pongo2.FromFile(path.Join(opt.Directory, f.Name()) + f.Ext())
+		t, err := pongo2.FromString(string(f.Data()))
 		if err != nil {
 			// Bomb out if parse fails. We don't want any silent server starts.
 			log.Fatalf("\"%s\": %v", f.Name(), err)
