@@ -19,12 +19,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"path"
 	"strings"
 	"sync"
 	"time"
 
-	"gopkg.in/flosch/pongo2.v3"
+	"github.com/flosch/pongo2"
 	"gopkg.in/macaron.v1"
 )
 
@@ -38,6 +37,14 @@ const (
 	_DEFAULT_TPL_SET_NAME = "DEFAULT"
 )
 
+type templateLoader struct {
+	macaron.TemplateFileSystem
+}
+
+func (tplLoader templateLoader) Abs(base, name string) string {
+	return name
+}
+
 func compile(opt Options) map[string]*pongo2.Template {
 	tplMap := make(map[string]*pongo2.Template)
 
@@ -45,14 +52,15 @@ func compile(opt Options) map[string]*pongo2.Template {
 		opt.TemplateFileSystem = macaron.NewTemplateFileSystem(macaron.RenderOptions{
 			Directory:  opt.Directory,
 			Extensions: opt.Extensions,
-		}, true)
+		}, false)
 	}
 
+	tplSet := pongo2.NewSet("Macaron", templateLoader{opt.TemplateFileSystem})
 	for _, f := range opt.TemplateFileSystem.ListFiles() {
-		t, err := pongo2.FromFile(path.Join(opt.Directory, f.Name()) + f.Ext())
+		t, err := tplSet.FromFile(f.Name() + f.Ext())
 		if err != nil {
 			// Bomb out if parse fails. We don't want any silent server starts.
-			log.Fatalf("\"%s\": %v", f.Name(), err)
+			log.Fatalf("\"%s\": %v", f.Name()+f.Ext(), err)
 		}
 		tplMap[strings.Replace(f.Name(), "\\", "/", -1)] = t
 	}

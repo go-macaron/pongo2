@@ -29,6 +29,39 @@ func Test_Render_HTML(t *testing.T) {
 		m.Use(Pongoers(Options{
 			Directory: "fixtures/basic",
 		}, "fixtures/basic2"))
+
+		Convey("Include another template", func() {
+			m.Get("/include", func(r macaron.Render) {
+				r.HTML(200, "include", map[string]interface{}{
+					"Name": "jeremy",
+				})
+			})
+			resp := httptest.NewRecorder()
+			req, err := http.NewRequest("GET", "/include", nil)
+			So(err, ShouldBeNil)
+			m.ServeHTTP(resp, req)
+
+			So(resp.Body.String(), ShouldEqual, "<p>How about include a template file</p>\n<h1>Hello jeremy</h1>")
+			So(resp.Code, ShouldEqual, http.StatusOK)
+			So(resp.Header().Get(_CONTENT_TYPE), ShouldEqual, _CONTENT_HTML+"; charset=UTF-8")
+		})
+
+		Convey("Extends another template", func() {
+			m.Get("/extends", func(r macaron.Render) {
+				r.HTML(200, "body/extends", map[string]interface{}{
+					"Name": "jeremy",
+				})
+			})
+			resp := httptest.NewRecorder()
+			req, err := http.NewRequest("GET", "/extends", nil)
+			So(err, ShouldBeNil)
+			m.ServeHTTP(resp, req)
+
+			So(resp.Body.String(), ShouldEqual, "<p>This is base!</p>\n<p>this is body!</p>")
+			So(resp.Code, ShouldEqual, http.StatusOK)
+			So(resp.Header().Get(_CONTENT_TYPE), ShouldEqual, _CONTENT_HTML+"; charset=UTF-8")
+		})
+
 		m.Get("/foobar", func(r macaron.Render) {
 			r.HTML(200, "hello", map[string]interface{}{
 				"Name": "jeremy",
@@ -51,16 +84,15 @@ func Test_Render_HTML(t *testing.T) {
 		So(resp.Body.String(), ShouldEqual, "<h1>Hello jeremy</h1>")
 		So(resp.Code, ShouldEqual, http.StatusOK)
 		So(resp.Header().Get(_CONTENT_TYPE), ShouldEqual, _CONTENT_HTML+"; charset=UTF-8")
-		So(resp.Body.String(), ShouldEqual, "<h1>Hello jeremy</h1>")
 
 		resp = httptest.NewRecorder()
 		req, err = http.NewRequest("GET", "/foobar2", nil)
 		So(err, ShouldBeNil)
 		m.ServeHTTP(resp, req)
 
+		So(resp.Body.String(), ShouldEqual, "<h1>What's up, jeremy</h1>")
 		So(resp.Code, ShouldEqual, http.StatusOK)
 		So(resp.Header().Get(_CONTENT_TYPE), ShouldEqual, _CONTENT_HTML+"; charset=UTF-8")
-		So(resp.Body.String(), ShouldEqual, "<h1>What's up, jeremy</h1>")
 
 		Convey("Change render templates path", func() {
 			resp := httptest.NewRecorder()
@@ -68,9 +100,9 @@ func Test_Render_HTML(t *testing.T) {
 			So(err, ShouldBeNil)
 			m.ServeHTTP(resp, req)
 
+			So(resp.Body.String(), ShouldEqual, "<h1>What's up, jeremy</h1>")
 			So(resp.Code, ShouldEqual, http.StatusOK)
 			So(resp.Header().Get(_CONTENT_TYPE), ShouldEqual, _CONTENT_HTML+"; charset=UTF-8")
-			So(resp.Body.String(), ShouldEqual, "<h1>What's up, jeremy</h1>")
 		})
 	})
 
