@@ -16,7 +16,9 @@
 package pongo2
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -43,6 +45,15 @@ type templateLoader struct {
 
 func (tplLoader templateLoader) Abs(base, name string) string {
 	return name
+}
+
+func (tplLoader templateLoader) Get(path string) (io.Reader, error) {
+	for _, f := range tplLoader.ListFiles() {
+		if f.Name()+f.Ext() == path {
+			return bytes.NewReader(f.Data()), nil
+		}
+	}
+	return nil, fmt.Errorf("Template %v not found", path)
 }
 
 func compile(opt Options) map[string]*pongo2.Template {
