@@ -9,7 +9,7 @@ Middleware pongo2 is a [pongo2](https://github.com/flosch/pongo2).**v3** templat
 ## Getting Help
 
 - [API Reference](https://gowalker.org/github.com/go-macaron/pongo2)
-- [Documentation](http://go-macaron.com/docs/middlewares/templating)
+- [Documentation](https://go-macaron.com/docs/middlewares/templating#pongo2-templating-engine)
 
 ## License
 
